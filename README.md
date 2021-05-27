@@ -1,0 +1,2 @@
+# arbbot
+Finance arbitrage bot
