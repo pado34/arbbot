@@ -6,14 +6,16 @@ import urllib.parse
 import json
 import hmac,hashlib
 
-#bter stuff
+personal_key = "inputpersonalkeyhere"
+
+#bter exchange
 def query(req, url):
  req['nonce'] = int(time.time()*1000)
  post_data = urllib.parse.urlencode(req)
  post_data=post_data.encode('utf-8')
- #dis for bter ^^
- sign = hmac.new(str.encode("inputpersonalkeyhere"), post_data, hashlib.sha512).hexdigest()
- headers = {'Sign': sign,'Key': "inputpersonalkeyhere"} 
+ #this is for bter
+ sign = hmac.new(str.encode(personal_key), post_data, hashlib.sha512).hexdigest()
+ headers = {'Sign': sign,'Key': personal_key} 
  ret = requests.post(url, data = req, headers=headers)
  return ret.json()
 
@@ -26,14 +28,14 @@ def query(req, url):
 def trade(pair,type,rate,amount):
 	return query({"pair":pair,"type":type,"rate":rate,"amount":amount},'https://bter.com/api/1/private/placeorder')
 
-#polo
+#polo exchange
 def queryPolo(command, reqq):
  reqq['command'] = command
  reqq['nonce'] = int(time.time()*1000)
  post_data = urllib.parse.urlencode(reqq)
  post_data=post_data.encode('utf-8')
- sign = hmac.new(str.encode("inputpersonalkeyhere"), post_data, hashlib.sha512).hexdigest()
- headers = {'Sign': sign,'Key': "inputpersonalkeyhere"}
+ sign = hmac.new(str.encode(personal_key), post_data, hashlib.sha512).hexdigest()
+ headers = {'Sign': sign,'Key': personal_key}
  ret = requests.post('https://poloniex.com/tradingApi', data = reqq, headers=headers)
  return ret.json()
 	
@@ -88,7 +90,6 @@ def returnArbOpportunity(relevant_dict_1,relevant_dict_2):
 		return [Decimal(0)]
 
 
-#start_time = time.time()
 
 
 
@@ -115,9 +116,7 @@ while 1==1:
 	# Création des threads
 	thread_polo_ETH = Download('https://poloniex.com/public?command=returnOrderBook&currencyPair=BTC_ETH&depth=1')
 
-
 	thread_bter_ETH = Download('http://data.bter.com/api/1/depth/eth_btc')
-
 
 	# Lancement des threads
 	thread_polo_ETH.start()
@@ -128,15 +127,12 @@ while 1==1:
 	thread_polo_ETH.join()
 
 	thread_bter_ETH.join()
-
-
 	
 	dict = {
 		"ETH": []
 	}
 
-	#bter
-	
+	#bter exchange
 	passs = 1
 	if thread_bter_ETH.dict!={}:		
 		if len(thread_bter_ETH.dict["asks"])>=1 and len(thread_bter_ETH.dict["bids"])>=1:
@@ -148,52 +144,42 @@ while 1==1:
 		if len(thread_polo_ETH.dict["asks"])>=1 and len(thread_polo_ETH.dict["bids"])>=1:
 			dict["ETH"].append([Decimal(thread_polo_ETH.dict["asks"][0][0]),Decimal(str(thread_polo_ETH.dict["asks"][0][1])),Decimal(thread_polo_ETH.dict["bids"][0][0]),Decimal(str(thread_polo_ETH.dict["bids"][0][1])),"polo"])
 			passs = 0
-	#polo
 
-
-
-
+	#polo exchange
 	if passs == 0:
-		hmm = returnArbOpportunity(dict["ETH"][0],dict["ETH"][1]) 
-		if hmm[0] >= 0.002: 
-			volumeboughtt = Decimal(str(0.042))/hmm[2]
-			if volumeboughtt >= hmm[1]:
-				if hmm[1] <= 3.18:
-					print("Benefice: "+str(hmm[0])+" /volume bought "+str(hmm[1])+" /ask price "+str(hmm[2])+" /bid price "+str(hmm[3])+" /buy from: "+hmm[4]+" and sell to "+hmm[5]+" / "+time.strftime("%H:%M:%S"))
-					if hmm[4]=="polo":
-						buy("BTC_ETH",str(hmm[2]),str(hmm[1]))
-						trade("eth_btc","SELL",str(hmm[3]),str(hmm[1]))
+		arb_opp = returnArbOpportunity(dict["ETH"][0],dict["ETH"][1]) 
+		if arb_opp[0] >= 0.002: 
+			volumeboughtt = Decimal(str(0.042))/arb_opp[2]
+			if volumeboughtt >= arb_opp[1]:
+				if arb_opp[1] <= 3.18:
+					print("Profit: "+str(arb_opp[0])+" /volume bought "+str(arb_opp[1])+" /ask price "+str(arb_opp[2])+" /bid price "+str(arb_opp[3])+" /buy from: "+arb_opp[4]+" and sell to "+arb_opp[5]+" / "+time.strftime("%H:%M:%S"))
+					if arb_opp[4]=="polo":
+						buy("BTC_ETH",str(arb_opp[2]),str(arb_opp[1]))
+						trade("eth_btc","SELL",str(arb_opp[3]),str(arb_opp[1]))
 					else:
-						sell("BTC_ETH",str(hmm[3]),str(hmm[1]))
-						trade("eth_btc","BUY",str(hmm[2]),str(hmm[1]))
+						sell("BTC_ETH",str(arb_opp[3]),str(arb_opp[1]))
+						trade("eth_btc","BUY",str(arb_opp[2]),str(arb_opp[1]))
 					F = open("mone.txt","a") 
-					F.write("Benefice: "+str(hmm[0])+" /volume bought "+str(hmm[1])+" /ask price "+str(hmm[2])+" /bid price "+str(hmm[3])+" /buy from: "+hmm[4]+" and sell to "+hmm[5]+" / "+time.strftime("%H:%M:%S")+" \n")
+					F.write("Profit: "+str(arb_opp[0])+" /volume bought "+str(arb_opp[1])+" /ask price "+str(arb_opp[2])+" /bid price "+str(arb_opp[3])+" /buy from: "+arb_opp[4]+" and sell to "+arb_opp[5]+" / "+time.strftime("%H:%M:%S")+" \n")
 					F.close()
 					break
 			else:	
-				nigel = volumeboughtt*(hmm[3]-hmm[2])
-				if nigel >= 0.002 and volumeboughtt <= 3.18:
-					if hmm[4]=="polo":
-						buy("BTC_ETH",str(hmm[2]),str(volumeboughtt))
-						trade("eth_btc","SELL",str(hmm[3]),str(volumeboughtt))
+				profit = volumeboughtt*(arb_opp[3]-arb_opp[2])
+				if profit >= 0.002 and volumeboughtt <= 3.18:
+					if arb_opp[4]=="polo":
+						buy("BTC_ETH",str(arb_opp[2]),str(volumeboughtt))
+						trade("eth_btc","SELL",str(arb_opp[3]),str(volumeboughtt))
 					else:
-						sell("BTC_ETH",str(hmm[3]),str(volumeboughtt))
-						trade("eth_btc","BUY",str(hmm[2]),str(volumeboughtt))	
-					print("Benefice: "+str(hmm[0])+" /volume bought "+str(hmm[1])+" /ask price "+str(hmm[2])+" /bid price "+str(hmm[3])+" /buy from: "+hmm[4]+" and sell to "+hmm[5]+" / "+time.strftime("%H:%M:%S"))
-					print("If I pay 50 euros this be the benifice m8: "+str(nigel))
+						sell("BTC_ETH",str(arb_opp[3]),str(volumeboughtt))
+						trade("eth_btc","BUY",str(arb_opp[2]),str(volumeboughtt))	
+					print("Profit: "+str(arb_opp[0])+" /volume bought "+str(arb_opp[1])+" /ask price "+str(arb_opp[2])+" /bid price "+str(arb_opp[3])+" /buy from: "+arb_opp[4]+" and sell to "+arb_opp[5]+" / "+time.strftime("%H:%M:%S"))
+					print("If I pay 50 euros this is the profit: "+str(profit))
 					
 					F = open("mone.txt","a") 
-					F.write("Benefice: "+str(hmm[0])+" /volume bought "+str(hmm[1])+" /ask price "+str(hmm[2])+" /bid price "+str(hmm[3])+" /buy from: "+hmm[4]+" and sell to "+hmm[5]+" / "+time.strftime("%H:%M:%S")+" If I pay 50 euros this be the benifice m8: "+str(nigel)+" \n")
+					F.write("Profit: "+str(arb_opp[0])+" /volume bought "+str(arb_opp[1])+" /ask price "+str(arb_opp[2])+" /bid price "+str(arb_opp[3])+" /buy from: "+arb_opp[4]+" and sell to "+arb_opp[5]+" / "+time.strftime("%H:%M:%S")+" If I pay 50 euros this is the profit: "+str(profit)+" \n")
 					F.close()
 					break
 				
 	print(time.strftime("%H:%M:%S"))
 	time.sleep(4)
-
-
-
-
-
-
-
 
